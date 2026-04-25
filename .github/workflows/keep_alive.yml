@@ -1,0 +1,29 @@
+name: Keep Render Alive
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Multiple Services in Parallel
+        run: |
+          urls=(
+            "https://theaiavalon-portal-server.onrender.com/api/v1/health"
+            "https://render-load-balancer.onrender.com"
+            "https://accounts.theaiavalon.in"
+            "https://student.portal.theaiavalon.in"
+            "https://mentor.portal.theaiavalon.in"
+            "https://admin.portal.theaiavalon.in"
+          )
+
+          for url in "${urls[@]}"; do
+            echo "Pinging $url"
+            curl -s $url &
+          done
+
+          wait
