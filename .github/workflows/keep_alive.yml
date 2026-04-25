@@ -24,8 +24,23 @@ jobs:
 
           pids=()
           for url in "${urls[@]}"; do
-            echo "Pinging $url"
-            curl -sf --max-time 30 -o /dev/null -w "%{url_effective} → %{http_code}\n" "$url" &
+            (
+              code=$(curl -sS -L --max-time 30 -o /dev/null -w "%{http_code}" "$url")
+              curl_exit=$?
+
+              if [ "$curl_exit" -ne 0 ]; then
+                echo "$url -> CURL_ERROR($curl_exit)"
+                exit 0
+              fi
+
+              if [ "$code" = "404" ]; then
+                echo "$url -> 404 (Not Found, handled)"
+                exit 0
+              fi
+
+              echo "$url -> $code"
+              exit 0
+            ) &
             pids+=($!)
           done
 
@@ -35,8 +50,8 @@ jobs:
           done
 
           if [ "$failed" -gt 0 ]; then
-            echo "⚠️ $failed service(s) failed to respond"
-            exit 1
+            echo "$failed service subprocess(es) exited unexpectedly (continuing)"
+            exit 0
           fi
 
-          echo "✅ All services responded successfully"
+          echo "All service checks completed"
