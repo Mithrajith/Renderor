@@ -1,13 +1,13 @@
 name: Keep Render Alive
-
 on:
   schedule:
-    - cron: "*/1 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 2
 
     steps:
       - name: Ping Multiple Services in Parallel
@@ -21,9 +21,21 @@ jobs:
             "https://admin.portal.theaiavalon.in"
           )
 
+          pids=()
           for url in "${urls[@]}"; do
             echo "Pinging $url"
-            curl -s $url &
+            curl -sf --max-time 30 -o /dev/null -w "%{url_effective} → %{http_code}\n" "$url" &
+            pids+=($!)
           done
 
-          wait
+          failed=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || failed=$((failed + 1))
+          done
+
+          if [ "$failed" -gt 0 ]; then
+            echo "⚠️ $failed service(s) failed to respond"
+            exit 1
+          fi
+
+          echo "✅ All services responded successfully"
